@@ -1,8 +1,9 @@
 import pika, sys, os
 from time import sleep
 
-"""
+""" acknowledgement
 Task will lost if consumer is terminated before task is completed.
+Due to we set auto_ack=True, so RabbitMQ will delete the message from the queue as soon as it is delivered.
 """
 
 
