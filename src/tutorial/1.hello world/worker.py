@@ -13,7 +13,7 @@ def main():
         pika.ConnectionParameters(host="localhost", port=5672, credentials=cred)
     )
     channel = connection.channel()
-
+    # Point queue with specific name to the worker consume same name.
     channel.queue_declare(queue="hello")
 
     def callback(ch, method, properties, body):

@@ -12,6 +12,8 @@ channel = connection.channel()
 
 channel.queue_declare(queue="task_queue", durable=True)
 message = " ".join(sys.argv[1:]) or "Hello World!"
+# if exchange is not set(or set to an empty string ""), the message will be sent to default or nameless exchange,
+# task will send to the queue with the same name as routing_key(if exists).
 channel.basic_publish(
     exchange="",
     routing_key="task_queue",
