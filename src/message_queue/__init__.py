@@ -64,26 +64,47 @@ class MessageQueue:
 
 
 class MessageQueueMonitoring:
+    def error_handler(func):
+        def wrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except subprocess.CalledProcessError as e:
+                if e.returncode in [127, 126]:
+                    print("please install rabbitmqctl before use this system")
+
+                if e.returncode == 64:
+                    print("please check the rabbitmqctl command is correct")
+
+        return wrapper
+
+    def list_queues_exchanges(self):
+        ret = self.run_cmd("list_exchanges")
+
+        return ret
+
+    @error_handler
+    def list_queues_binds(self):
+        """
+        'Timeout: 60.0 seconds ...\nListing queues for vhost / ...\nname\tmessages_ready\tmessages_unacknowledged\nhello3\t0\t0\nhello\t0\t0\n'
+        """
+        ret = self.run_cmd("list_bindings")
+
+        return ret
+
+    @error_handler
+    def list_unack_messages(self):
+        """
+        'Timeout: 60.0 seconds ...\nListing queues for vhost / ...\nname\tmessages_ready\tmessages_unacknowledged\nhello3\t0\t0\nhello\t0\t0\n'
+        """
+        ret = self.run_cmd("list_queues name messages_ready messages_unacknowledged")
+
+        return ret
+
     def __generate_cmd(self, cmd) -> str:
         """
         Because we run rabbitMQ in a docker container, so we need to run the command in the container.
         """
-        return f'docker exec {os.getenv("CONTAINER NAME")} {cmd}'
-
-    def list_unack_messages(self):
-        cmd = self.__generate_cmd(
-            "rabbitmqctl list_queues name messages_ready messages_unacknowledged"
-        )
-        try:
-            sub = subprocess.run(cmd, shell=True, check=True, capture_output=True)
-            stdout = sub.stdout.decode("utf-8")
-            """
-            'Timeout: 60.0 seconds ...\nListing queues for vhost / ...\nname\tmessages_ready\tmessages_unacknowledged\nhello3\t0\t0\nhello\t0\t0\n'
-            """
-        except subprocess.CalledProcessError as e:
-            print(e)
-            if e.returncode == 127:
-                print("please install rabbitmqctl before use this system")
+        return f'docker exec {os.getenv("CONTAINER NAME")} rabbitmqctl {cmd}'
 
     def run_cmd(
         self,
@@ -92,17 +113,19 @@ class MessageQueueMonitoring:
         shell: bool = True,
         check: bool = True,
         capture_output: bool = True,
-    ):
+    ) -> subprocess.CompletedProcess:
         """
         Args:
             shell: If true, the command will be executed through the shell(Able to use shell feature, such pipe.)
             check: If true, raise a CalledProcessError if the process return code is non-zero, otherwise it needs to check return code by yourself.
             capture_output: If true, stdout and stderr will be captured.
+
+        NOTE: not need to decorate with error_handler when `check` is False
         """
-        pass
-        # if check:
-        #     try:
 
-        #     except subprocess.CalledProcessError:
-
-        # return subprocess.run(cmd, shell=shell, check=check, capture_output=capture_output)
+        return subprocess.run(
+            self.__generate_cmd(cmd),
+            shell=shell,
+            check=check,
+            capture_output=capture_output,
+        )
